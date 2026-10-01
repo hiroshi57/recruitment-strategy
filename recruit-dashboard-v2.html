@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27卒 採用 内定承諾・辞退 分析ダッシュボード</title>
+<style>
+:root{
+  --ink:#12161c; --ink-2:#4a5260; --ink-3:#79818f;
+  --paper:#ffffff; --surface:#f4f6f8; --surface-2:#eaeef3;
+  --line:#d8dee6; --line-2:#eef1f5;
+  --navy:#0f2e5c; --blue:#1e6fd9; --blue-soft:#dce8f9;
+  --red:#c2362c; --red-soft:#f9e4e2;
+  --amber:#96680a; --amber-soft:#faeed2;
+  --green:#1d6b49; --green-soft:#dcefe4;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#e9edf3; --ink-2:#a9b2c0; --ink-3:#7d8694;
+    --paper:#11151b; --surface:#171d25; --surface-2:#1e2632;
+    --line:#2c3644; --line-2:#222a35;
+    --navy:#9dc0ef; --blue:#61a0ef; --blue-soft:#1b2c44;
+    --red:#ef8279; --red-soft:#3a201e;
+    --amber:#d5a53c; --amber-soft:#332a14;
+    --green:#66c398; --green-soft:#163024;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e9edf3; --ink-2:#a9b2c0; --ink-3:#7d8694;
+  --paper:#11151b; --surface:#171d25; --surface-2:#1e2632;
+  --line:#2c3644; --line-2:#222a35;
+  --navy:#9dc0ef; --blue:#61a0ef; --blue-soft:#1b2c44;
+  --red:#ef8279; --red-soft:#3a201e;
+  --amber:#d5a53c; --amber-soft:#332a14;
+  --green:#66c398; --green-soft:#163024;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper); color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased; font-feature-settings:"palt" 1;}
+h1,h2,h3,h4{line-height:1.35; margin:0; font-weight:700}
+p{margin:0 0 .85em}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px; margin:0 auto; padding:0 20px 90px}
+header.top{border-bottom:2px solid var(--ink); padding:26px 0 16px}
+.top-row{display:flex; flex-wrap:wrap; gap:16px; align-items:baseline; justify-content:space-between}
+h1{font-size:clamp(20px,3.4vw,27px)}
+.sub{color:var(--ink-2); font-size:13.5px; margin-top:6px; max-width:68ch}
+.themebtn{border:1px solid var(--line); background:var(--surface); color:var(--ink-2); border-radius:4px;
+  padding:5px 11px; font-size:12.5px; cursor:pointer; font-family:inherit}
+nav.tabs{position:sticky; top:0; z-index:30; background:var(--paper); border-bottom:1px solid var(--line);
+  display:flex; overflow-x:auto; margin-bottom:34px}
+nav.tabs button{appearance:none; border:0; background:none; font-family:inherit; font-size:13.5px; color:var(--ink-2);
+  padding:13px 15px; cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; font-weight:600}
+nav.tabs button[aria-selected="true"]{color:var(--navy); border-bottom-color:var(--navy)}
+nav.tabs button:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+section.panel{display:none} section.panel.on{display:block}
+.block{margin-bottom:46px}
+.block > h2{font-size:17px; padding-bottom:9px; border-bottom:1px solid var(--line)}
+.block > .lede{color:var(--ink-2); font-size:13.5px; margin:12px 0 20px; max-width:76ch}
+
+/* headline finding */
+.finding{border:1px solid var(--line); border-left:4px solid var(--red); padding:20px 22px; margin-bottom:26px; background:var(--surface)}
+.finding h2{font-size:19px; margin-bottom:8px}
+.finding p{font-size:14px; color:var(--ink-2); max-width:78ch; margin-bottom:0}
+.finding.ok{border-left-color:var(--green)}
+.finding.note{border-left-color:var(--blue)}
+
+.callout{border-left:3px solid var(--amber); background:var(--amber-soft); padding:13px 16px; font-size:13.5px; margin:18px 0}
+.callout b{display:block; margin-bottom:3px}
+
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); border:1px solid var(--line); border-right:0}
+.stat{border-right:1px solid var(--line); padding:14px 16px}
+.stat .v{font-size:26px; font-weight:700; color:var(--navy); line-height:1.2}
+.stat .k{font-size:12px; color:var(--ink-2)}
+
+.scroll{overflow-x:auto; border:1px solid var(--line)}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:740px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--line-2); vertical-align:top}
+thead th{background:var(--surface); font-size:11.5px; color:var(--ink-2); font-weight:700;
+  border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer}
+tbody tr:hover{background:var(--surface)}
+td.n{text-align:right; font-variant-numeric:tabular-nums}
+.namecell{font-weight:700; white-space:nowrap}
+.namecell small{display:block; font-weight:400; color:var(--ink-3); font-size:11px}
+.tag{display:inline-block; font-size:11px; padding:1px 8px; border:1px solid var(--line); border-radius:2px; white-space:nowrap}
+.tag.ok{border-color:var(--green); color:var(--green); background:var(--green-soft)}
+.tag.no{border-color:var(--red); color:var(--red); background:var(--red-soft)}
+.tag.hold{border-color:var(--amber); color:var(--amber); background:var(--amber-soft)}
+.tag.new{border-color:var(--blue); color:var(--blue); background:var(--blue-soft)}
+.chartbox{border:1px solid var(--line); padding:16px; overflow-x:auto}
+svg{display:block; max-width:100%; height:auto}
+.legend{display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--ink-2); margin-top:12px}
+.legend span{display:flex; align-items:center; gap:6px}
+.swatch{width:11px; height:11px; display:inline-block; border-radius:2px}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:24px}
+@media (max-width:860px){ .two{grid-template-columns:1fr} }
+.controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; font-size:13px; color:var(--ink-2)}
+select,input[type=text]{font-family:inherit; font-size:13px; padding:5px 8px; border:1px solid var(--line);
+  background:var(--paper); color:var(--ink); border-radius:3px}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{border:1px solid var(--line); background:var(--paper); color:var(--ink-2); font-family:inherit; font-size:12.5px;
+  padding:4px 10px; border-radius:2px; cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:var(--paper)}
+.detail{border:1px solid var(--line); margin-top:22px}
+.detail-h{padding:16px 18px; border-bottom:1px solid var(--line); background:var(--surface)}
+.detail-h .meta{font-size:12.5px; color:var(--ink-2); margin-top:4px}
+.detail-b{padding:18px; display:grid; grid-template-columns:1fr 1fr; gap:26px}
+@media (max-width:760px){ .detail-b{grid-template-columns:1fr} }
+.pts h4{font-size:12.5px; color:var(--ink-2); margin:16px 0 6px}
+.pts h4:first-child{margin-top:0}
+.pts ul{margin:0; padding-left:1.15em; font-size:13.5px}
+.pts li{margin-bottom:5px}
+.ev{font-size:12.5px; color:var(--ink-2); border-left:2px solid var(--line); padding-left:10px; margin-top:4px}
+.form{border:1px solid var(--line); padding:20px}
+.form h3{font-size:14px; margin:0 0 4px}
+.form .hint{font-size:12.5px; color:var(--ink-3); margin-bottom:12px}
+.frow{display:grid; grid-template-columns:150px 1fr 54px; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line-2)}
+.frow:last-of-type{border-bottom:0}
+.frow label{font-size:13.5px; font-weight:600}
+.frow label small{display:block; font-weight:400; color:var(--ink-3); font-size:11.5px; line-height:1.5}
+.frow output{font-variant-numeric:tabular-nums; font-weight:700; text-align:right; font-size:14px}
+input[type=range]{width:100%; accent-color:var(--blue)}
+@media (max-width:620px){ .frow{grid-template-columns:1fr 54px} .frow input[type=range]{grid-column:1/3} }
+.btn{font-family:inherit; font-size:13.5px; font-weight:600; padding:9px 18px; border-radius:3px; cursor:pointer;
+  border:1px solid var(--navy); background:var(--navy); color:var(--paper)}
+.btn.ghost{background:none; color:var(--ink-2); border-color:var(--line)}
+.verdict{border:1px solid var(--line); padding:20px}
+.vhead{display:grid; grid-template-columns:1fr 1fr; gap:18px; padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:16px}
+.vhead .big{font-size:30px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.15}
+.vhead .lb{font-size:16px; font-weight:700}
+.vhead .cap{font-size:11.5px; color:var(--ink-3)}
+.action{border:1px solid var(--line); border-top:4px solid var(--blue); padding:14px 16px; margin-bottom:16px}
+.action .t{font-weight:700; font-size:14.5px; margin-bottom:4px}
+.rubric{font-size:13px}
+.rubric td:first-child{white-space:nowrap; font-weight:700}
+.foot{margin-top:60px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="top-row">
+    <div>
+      <h1>27卒 採用 内定承諾・辞退 分析ダッシュボード</h1>
+      <div class="sub">録画分析用スプレッドシート（41名のステータス）と二次面接のGemini議事録12件を突合し、承諾者と辞退者を分けている要因を数値化しました。</div>
+    </div>
+    <button class="themebtn" id="themebtn">表示を切り替え</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-p="p-key">わかったこと</button>
+  <button role="tab" aria-selected="false" data-p="p-diff">承諾と辞退の差</button>
+  <button role="tab" aria-selected="false" data-p="p-map">2軸マップ</button>
+  <button role="tab" aria-selected="false" data-p="p-list">候補者一覧</button>
+  <button role="tab" aria-selected="false" data-p="p-judge">新規判定</button>
+  <button role="tab" aria-selected="false" data-p="p-rule">基準と重み</button>
+</nav>
+
+<!-- ============ わかったこと ============ -->
+<section class="panel on" id="p-key">
+
+  <div class="finding">
+    <h2>面接の評価が高い人ほど、辞退している</h2>
+    <p>議事録のある12名を9軸で採点し、承諾・辞退と突合しました。承諾群の選考スコア平均は4.00、辞退群は4.10で、<b>辞退群のほうがわずかに高い</b>。特に学歴（−0.54）、当事者意識（−0.39）、実績（−0.24）は辞退群が明確に上回ります。面接での優秀さは、入社してくれるかどうかをまったく説明していません。</p>
+  </div>
+
+  <div class="finding ok">
+    <h2>分かれ目は「DIでなければならない理由」を語れたかどうか</h2>
+    <p>志望順位・併願先・DI固有の理由・配属希望の確定度・他キャリアへの引力という5つのシグナルを議事録から採点したところ、承諾群は平均2.72、辞退群は3.83と、選考スコアの10倍以上の差がつきました。しきい値3.2で分類すると12名中11名が的中します。</p>
+  </div>
+
+  <div class="finding note">
+    <h2>志望度が低くても、フォローを入れれば覆る</h2>
+    <p>丹羽憧さんは面接で「DIは2位、1位はレイスグループ」と明言し、辞退リスクは3.80と高い値でした。それでも承諾しています。議事録には面接官が「成長環境での優位性を改めて伝える機会を設定する」というネクストステップを残しており、介入が効いた可能性が高い。唯一の例外が、同時に唯一の打ち手の証拠でもあります。</p>
+  </div>
+
+  <div class="block">
+    <h2>母集団の状況</h2>
+    <div class="stats" id="stats"></div>
+    <div class="callout">
+      <b>「不採用者」のデータは今回も存在しません</b>
+      スプレッドシートは内定を出した41名の一覧で、ステータスは承諾・辞退・検討中の3種類です。選考で見送った方は載っていないため、「内定者と不採用者の違い」は依然として分析できません。いま分析できているのは<b>内定承諾と内定辞退の違い</b>で、辞退率61.5%という数字を見る限り、こちらのほうが緊急度は高いはずです。
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>選考スコアと辞退の関係</h2>
+    <p class="lede">横軸が選考スコア、縦軸が人数です。両群が完全に重なっており、選考スコアだけでは承諾者を見分けられないことがそのまま形に出ています。</p>
+    <div class="chartbox"><div id="chart-overlap"></div></div>
+  </div>
+</section>
+
+<!-- ============ 差分 ============ -->
+<section class="panel" id="p-diff">
+  <div class="block">
+    <h2>9軸のどこに差が出たか</h2>
+    <p class="lede">承諾群の平均から辞退群の平均を引いた値です。右に伸びるほど承諾者に多い特徴、左に伸びるほど辞退者に多い特徴。n=12のため統計的な有意性はありませんが、向きは一貫しています。</p>
+    <div class="chartbox"><div id="chart-axisdiff"></div></div>
+  </div>
+
+  <div class="block">
+    <h2>辞退リスクの5シグナル</h2>
+    <p class="lede">面接の議事録から読み取れる、志望度と定着に関わる5項目です。1が低リスク、5が高リスク。こちらは承諾群と辞退群で1.11ポイントの差がつきました。</p>
+    <div class="chartbox"><div id="chart-riskdiff"></div></div>
+  </div>
+
+  <div class="block">
+    <h2>読み取れる示唆</h2>
+    <div class="scroll"><table id="tbl-insight"></table></div>
+  </div>
+</section>
+
+<!-- ============ マップ ============ -->
+<section class="panel" id="p-map">
+  <div class="block">
+    <h2>選考スコア × 辞退リスク</h2>
+    <p class="lede">右に行くほど選考評価が高く、上に行くほど辞退しやすい。実際の結果を色で重ねています。右上（評価が高く辞退しやすい）にどれだけ資源を投じるかが、この採用の実質的な勝負どころです。</p>
+    <div class="chartbox"><div id="chart-scatter"></div></div>
+  </div>
+  <div class="block">
+    <h2>4象限ごとの打ち手</h2>
+    <div class="scroll"><table id="tbl-quad"></table></div>
+  </div>
+  <div class="block">
+    <h2>軸プロファイルの比較</h2>
+    <p class="lede">最大3名まで重ねられます。</p>
+    <div class="controls"><div class="chips" id="radarchips"></div></div>
+    <div class="chartbox"><div id="chart-radar"></div></div>
+  </div>
+</section>
+
+<!-- ============ 一覧 ============ -->
+<section class="panel" id="p-list">
+  <div class="block">
+    <h2>候補者一覧</h2>
+    <p class="lede">見出しをクリックで並べ替え、行をクリックで詳細が開きます。詳細には採点の根拠、辞退リスクの内訳、次の面接で確認すべき点、本人に伝えるとしたらの4つを載せています。</p>
+    <div class="controls">
+      <label>絞り込み
+        <select id="filter">
+          <option value="all">全員</option>
+          <option value="承諾">内定承諾</option>
+          <option value="辞退">内定辞退</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="shownew"> 追加入力した候補者も表示</label>
+    </div>
+    <div class="scroll"><table id="tbl-main"></table></div>
+    <div id="detail"></div>
+  </div>
+</section>
+
+<!-- ============ 判定 ============ -->
+<section class="panel" id="p-judge">
+  <div class="block">
+    <h2>新規候補者の判定</h2>
+    <p class="lede">左の9軸で選考の合否を、右の5シグナルで辞退リスクを判定します。2つは別物として出します。動画がなく採点できない軸は0（未評価）にすると計算から除外されます。</p>
+    <div class="two">
+      <div>
+        <div class="form">
+          <div class="frow" style="grid-template-columns:150px 1fr">
+            <label for="f-name">氏名・識別名</label>
+            <input type="text" id="f-name" placeholder="例）候補者A">
+          </div>
+          <h3 style="margin-top:16px">選考スコア（9軸）</h3>
+          <div class="hint">5に近いほど評価が高い</div>
+          <div id="sliders"></div>
+          <h3 style="margin-top:22px">辞退リスク（5シグナル）</h3>
+          <div class="hint">5に近いほど辞退しやすい</div>
+          <div id="rsliders"></div>
+          <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap">
+            <button class="btn" id="save">この評価を保存</button>
+            <button class="btn ghost" id="reset">入力をリセット</button>
+            <button class="btn ghost" id="clearall">保存データを全消去</button>
+          </div>
+          <div id="savedlist" style="margin-top:16px; font-size:12.5px; color:var(--ink-2)"></div>
+        </div>
+      </div>
+      <div><div class="verdict" id="verdict"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 基準 ============ -->
+<section class="panel" id="p-rule">
+  <div class="block">
+    <h2>選考スコアの重み</h2>
+    <p class="lede">合計が100%になるよう正規化されます。変更すると全画面が再計算されます。</p>
+    <div class="form" id="weights"></div>
+  </div>
+  <div class="block">
+    <h2>選考スコアの採点基準</h2>
+    <p class="lede">面接官が変わっても点がぶれないよう、5点・3点・1点の姿を定義しています。</p>
+    <div class="scroll"><table class="rubric" id="tbl-rubric"></table></div>
+  </div>
+  <div class="block">
+    <h2>辞退リスクの採点基準</h2>
+    <div class="scroll"><table class="rubric" id="tbl-rrubric"></table></div>
+  </div>
+  <div class="block">
+    <h2>このモデルの限界</h2>
+    <p class="lede">辞退リスクの5シグナルは、承諾・辞退の結果を知った後に議事録から抽出しています。つまり11/12という的中率は後知恵を含んでおり、そのままの精度が出るとは限りません。本当の予測力は、28卒で結果が出る前に採点し、後から答え合わせをして初めて確かめられます。また母数が12名と少なく、学歴の差（−0.54）も数名の入れ替わりで消える大きさです。数字は仮説の提示であって、結論ではありません。</p>
+  </div>
+</section>
+
+<div class="foot">
+出典：Google スプレッドシート「【採用PJ】録画分析用」（27卒41名のステータス）、およびプロジェクト内のGemini議事録12件（2025年10月〜2026年6月の二次面接）。9軸のうち「服装・背景」「あいさつ・マナー」は動画が必要なため未評価、「話し方」は議事録からの間接推定です。選考スコアは議事録の記述を基準に照らして採点した推定値で、面接官本人の評定ではありません。
+</div>
+</div>
+
+<script>
+"use strict";
+/* ========== 定義 ========== */
+const AXES=[
+ {id:"speak",name:"話し方",hint:"はきはきと、要点から話せているか",cov:.45,w:8},
+ {id:"comm", name:"コミュニケーション",hint:"質問と回答がずれていないか",cov:1,w:15},
+ {id:"look", name:"服装・背景",hint:"画面に映る身だしなみと環境",cov:0,w:3},
+ {id:"edu",  name:"学歴",hint:"学習内容と志望職種のつながりを含む",cov:1,w:5},
+ {id:"goal", name:"目標・将来性",hint:"目的と目標に漏れがないか",cov:1,w:15},
+ {id:"owner",name:"当事者意識",hint:"自分事化しているか",cov:1,w:20},
+ {id:"att",  name:"性格・姿勢",hint:"実直さ、素直さ、継続力",cov:1,w:14},
+ {id:"track",name:"実績",hint:"学生時代と入社後がつながるか",cov:1,w:18},
+ {id:"man",  name:"あいさつ・マナー",hint:"明るい表情で目を見て話せるか",cov:0,w:2}
+];
+const AXMAP=Object.fromEntries(AXES.map(a=>[a.id,a]));
+let W=Object.fromEntries(AXES.map(a=>[a.id,a.w]));
+
+const RISKS=[
+ {id:"r1",name:"志望順位",hint:"DIが第一志望か。他社が上と明言していないか"},
+ {id:"r2",name:"併願先の強さ",hint:"知名度や条件で勝ちにくい相手と競合していないか"},
+ {id:"r3",name:"DI固有の理由",hint:"成長環境など他社でも言える理由だけになっていないか"},
+ {id:"r4",name:"配属・職種の確定度",hint:"入社後にやることが決まっているか"},
+ {id:"r5",name:"他キャリアの引力",hint:"起業、進学、別業界などの志向が残っていないか"}
+];
+
+const C=[
+{n:"蜷川 舜也",date:"2025-10-20",iv:"北川",uni:"東海大学大学院 経済学研究科",res:"承諾",
+ s:{speak:4,comm:4,look:null,edu:3.5,goal:4.5,owner:4,att:4,track:4,man:null},
+ r:{r1:3,r2:3,r3:2,r4:2,r5:2},
+ ev:{goal:"フルファネルを網羅するマーケター→将来はマネージャー職と、職種と段階の両方を言語化",
+     owner:"コンフォートゾーンを出るために自ら留学を選び、競技断念後の進路も自分で切り替えた",
+     track:"体育会アルペンスキー、カナダ留学、大学院進学。業務に直結する成果物は語られていない",
+     edu:"大学院で応用経済学。学習内容と志望職種の接続は明確"},
+ rev:{r3:"パーソナライズ化された育成方針という会社固有の説明に納得を示した",r4:"担いたい領域と段階が具体"},
+ str:["将来像が職種名と段階まで具体化されている","競技から進路への転換を自分の判断として説明できている"],
+ gap:["学生時代の取り組みが定量的な成果として語られていない","デジタルマーケティングの業務理解は志望動機どまり"],
+ watch:["スキー以外で目標を数値で追った経験があるか","父親像への憧れが職業選択の中心になっていないか"],
+ adv:["留学・競技経験を課題設定→打ち手→結果の型に整理し、数字を1つ添える","フルファネルのどの工程から担いたいかを1つに絞って話す"]},
+
+{n:"本多 笙平",date:"2026-04-10",iv:"松島",uni:"早稲田大学 人間科学部",res:"辞退",
+ s:{speak:4,comm:4,look:null,edu:4.5,goal:3.5,owner:3.5,att:4.5,track:4,man:null},
+ r:{r1:4,r2:4,r3:4,r4:4,r5:2},
+ ev:{goal:"軸は『やりがい』『人に新しい世界を見せる』。業界は絞れているが職種の解像度が低い",
+     owner:"新歓40件参加と5サークル継続は主体的。受験の原動力は『人からの期待に応える』で外発的",
+     att:"サッカー断念と無気力期を隠さず話し、読書を年60冊続けている継続性",
+     track:"早稲田合格、5サークル、読書習慣。組織を動かした成果は薄い"},
+ rev:{r1:"ビットスターを高く評価していると自ら述べた",r2:"SNS起点の総合代理店志向という異なる魅力と競合",
+      r3:"成長環境と一緒に働く人という、どの会社でも言える条件が決め手",r4:"広告業界の中の職種が未定"},
+ str:["失敗と停滞期を脚色せず開示できる素直さ","関心の広さと継続力が読書量と活動量に表れている"],
+ gap:["行動の起点が他者からの期待に置かれており、自発の動機が弱い","志望職種が定まらず、軸が抽象的なまま"],
+ watch:["期待されていない状況で自分から動いた経験があるか","5つのサークルで役割を担ったか、参加にとどまったか"],
+ adv:["自分で決めて始めたことを1つ選び、動機から結果まで話せるようにする","広告業界の中で担いたい職種を1つ決め、理由を軸とつなげる"]},
+
+{n:"茨木 聡太",date:"2025-11-26",iv:"中川",uni:"早稲田大学 法学部",res:"辞退",
+ s:{speak:4,comm:4,look:null,edu:4.5,goal:3,owner:4.5,att:4,track:4.5,man:null},
+ r:{r1:4,r2:4,r3:4,r4:5,r5:2},
+ ev:{goal:"広告志望の理由は独自だが、入社後のキャリア像や達成したい状態が語られていない",
+     owner:"赤字合宿の責任者として要因を3つに分解し、打ち手まで実行している",
+     track:"参加15名・大赤字の合宿を立て直し、参加者数と評判を回復させた",
+     edu:"早稲田大学法学部。400名規模組織の運営経験と接続"},
+ rev:{r3:"志望理由が自己分析寄りで、会社固有の要素が出ていない",r4:"将来像がほぼ語られていない",
+      r2:"早期選考を中心に広く比較中"},
+ str:["組織課題を要因分解して打ち手まで持っていった実行力","苦手の克服を長期間続けた自己変革の実績"],
+ gap:["将来像と入社後にやりたいことがほぼ語られていない","広告への志望理由が自己分析寄りで、業務理解に届いていない"],
+ watch:["立て直しのうち本人の判断はどこまでかを切り分ける","5年後に何をしている人になりたいかを職種粒度で確認"],
+ adv:["合宿の成果を人数・収支の数字で語り、再現できる原則まで抽象化する","入社後3年でなりたい状態を職種名と担当領域で言えるようにする"]},
+
+{n:"中島 日花里",date:"2026-03-04",iv:"杉原",uni:"香川大学 医学部 臨床心理学科",res:"承諾",
+ s:{speak:4.5,comm:4.5,look:null,edu:3.5,goal:4,owner:4,att:4.5,track:4,man:null},
+ r:{r1:3,r2:4,r3:1,r4:2,r5:2},
+ ev:{comm:"競合他社、志望理由、忙しさへの耐性のいずれにも背景を添えて一貫した回答",
+     goal:"コンサルティング職志望と理由が明確。長期像の動機は『かっこいいから』にとどまる",
+     owner:"親の助言を受けつつ進路は自分で決定。企業研究も自分で深く行っている",
+     att:"習い事を小学校から中3まで継続、負けず嫌い、計画性"},
+ rev:{r3:"配属ガチャがない点と施策を統合して提供できる点という、会社固有の理由を挙げた",
+      r2:"オプト、サイバーエージェント、マクロミル等の強豪と併願",r4:"コンサルティングディビジョン志望と明言"},
+ str:["企業研究の深さと回答の一貫性","心理学→統計→デジタルマーケティングという動機の筋が通っている"],
+ gap:["長期のキャリア像の動機が憧れ止まり","仕事としての成果を出した経験はまだ少ない"],
+ watch:["キャリアウーマンの中身を担当業務と成果の言葉で確認","忙しさ耐性の根拠が学生時代の練習量のみで足りるか"],
+ adv:["憧れの人物像を5年後の担当業務と成果指標に翻訳しておく","統計分析の学習を広告の数値改善にどう使うかまで具体化する"]},
+
+{n:"國近 壮生",date:"2026-03-09",iv:"峠",uni:"東京大学 法学部",res:"辞退",
+ s:{speak:4,comm:4,look:null,edu:5,goal:3,owner:4,att:4.5,track:4,man:null},
+ r:{r1:4,r2:4,r3:4,r4:5,r5:3},
+ ev:{goal:"マネージャー志望は明確だが、面接官から業界と業務の解像度不足を明確に指摘されている",
+     owner:"応援部の吹奏楽責任者として『誰も取りこぼさない組織作り』を自ら目標設定",
+     att:"期待に応えることを負担でなくやりがいと捉える。剣道主将、生徒会長の継続",
+     edu:"東京大学法学部。学習内容と志望職種の接続は語られていない"},
+ rev:{r4:"何をする仕事かの解像度が低いと面接官が明示的に指摘",r5:"就活開始が2月で比較の量が不足",
+      r3:"人のためになる仕事と成長環境という、広く当てはまる理由"},
+ str:["組織の目標を自分で定義して運営した経験","利他的な行動を無理なく続けられる資質"],
+ gap:["デジタルマーケティングの業務理解が浅い","就活開始が遅く、比較検討の量が不足"],
+ watch:["役員面接までに業界理解がどれだけ伸びたかを定点で確認","応援部の目標設定が本人発案か慣例の踏襲かを切り分ける"],
+ adv:["広告運用・SEO・サイト制作が日々何をしているかを社員面談で具体化する","誰かのための対象をクライアントとその先の生活者まで言語化する"]},
+
+{n:"平石 璃音",date:"2026-01-09",iv:"北川・松島",uni:"多摩美術大学 美術学部",res:"辞退",
+ s:{speak:4,comm:4,look:null,edu:3.5,goal:4,owner:4.5,att:4,track:4,man:null},
+ r:{r1:5,r2:5,r3:4,r4:3,r5:2},
+ ev:{goal:"『見てよかったと思える広告を増やす』と職種の両方が具体",
+     owner:"馬に乗れない子のために裏プログラムを自ら企画・運営",
+     track:"ボランティア団体での企画運営、アルバイトのSNS運用で数値分析と改善",
+     att:"60名との長期共同生活と毎晩の会議を継続"},
+ rev:{r1:"スーパーシップを最も志望度が高い企業として明言",r2:"一貫して関われる点と人柄という、DIと同じ土俵で競合",
+      r3:"多様な挑戦ができる環境という一般的な条件"},
+ str:["課題を見つけて自分でプログラムを作った発案力","数値分析に抵抗がなく改善を楽しめる素地"],
+ gap:["第一志望が他社であることを明言している","広告業務の分業構造の理解がまだ浅い"],
+ watch:["運用とクリエイティブのどちらを担いたいかの結論","他社と比べた志望順位とその理由"],
+ adv:["ボランティアの企画を参加人数など数字で語れるよう整理する","広告運用とクリエイティブの役割差を踏まえ希望職種を言い切る"]},
+
+{n:"大曽根 啓将",date:"2026-04-01",iv:"吉岡",uni:"中央大学 理工学部",res:"辞退",
+ s:{speak:4,comm:3.5,look:null,edu:4,goal:4,owner:4,att:3.5,track:3.5,man:null},
+ r:{r1:4,r2:5,r3:3,r4:3,r5:4},
+ ev:{comm:"逆質問は鋭いが、学生時代の話は具体性が弱く説得力を欠くと面接官が指摘",
+     goal:"裁量権・成長環境・社会へのインパクトの3点が明確",
+     owner:"合格に必要な要素を自ら分析し、企業理念から逆算して回答を組み立てた",
+     track:"焼肉店で新規店舗開拓を任された経験、ゲームでの分析的アプローチ"},
+ rev:{r2:"野村総研などの大手シンクタンクと併願",r5:"大学院進学志望からの切り替えで、研究志向が残る",
+      r1:"広告系とSIerコンサルの両方を並行"},
+ str:["データサイエンスの専門性という希少な持ち札","企業を分析対象として捉える思考の癖"],
+ gap:["エピソードの選び方と伝え方に具体性が不足","進路変更が外部要因で説明されている"],
+ watch:["分析力を示すエピソードが次回どこまで整理されてくるか","ベンチャー志向の根拠が成長曲線のイメージ論を超えるか"],
+ adv:["ゲーム分析の話を仮説・検証・結果の順で3分に再構成する","焼肉店の新規開拓を自分の判断と数字の変化で語る"]},
+
+{n:"丹羽 憧",date:"2025-12-24",iv:"吉岡",uni:"小樽商科大学",res:"承諾",
+ s:{speak:4,comm:4,look:null,edu:4,goal:4,owner:4,att:4.5,track:3,man:null},
+ r:{r1:5,r2:5,r3:3,r4:3,r5:3},
+ ev:{goal:"成長環境と正当な評価を重視、経営コンサル志向と市場価値という軸が明確",
+     owner:"志望順位が2位であることを自分から正直に開示",
+     att:"率直さと誠実さ。フィードバックしてくれる環境を重視する姿勢",
+     track:"都市計画の研究と体育会コミュニティ。具体的な成果の記述が乏しい"},
+ rev:{r1:"レイスグループが1位、DIは2位と明言",r2:"経営者に近い目線という、DIが持たない魅力で競合",
+      r3:"面接での人の魅力を評価しており、会社固有の要素も拾っている"},
+ str:["言いにくい志望順位を正直に伝える誠実さ","求める環境の条件が明確でミスマッチが起きにくい"],
+ gap:["学生時代の実績が具体的な成果として語られていない","第一志望が他社と明言している"],
+ watch:["省略された基本質問を次回で必ず埋める","志望順位が動いたか、何が決め手になるかを確認"],
+ adv:["都市計画の研究を課題設定から結論までの形で話せるよう整理する","比較している他社との違いを自分の言葉で挙げられるようにする"],
+ special:"辞退リスク3.80と高いにもかかわらず承諾した唯一の例。議事録には面接官が成長環境での優位性を改めて伝える機会を設定するというネクストステップを残しており、フォローの介入が効いた可能性が高い。"},
+
+{n:"田中 美桜里",date:"2025-12-09",iv:"杉原",uni:"明治大学 商学部",res:"辞退",
+ s:{speak:4.5,comm:4.5,look:null,edu:4,goal:4.5,owner:4.5,att:4.5,track:4.5,man:null},
+ r:{r1:4,r2:4,r3:4,r4:4,r5:3},
+ ev:{comm:"3つの軸を提示し、それぞれの理由を研究経験に紐づけて説明",
+     goal:"ファーストキャリア・一気通貫・年次不問の3軸に加え、広告表現の設計まで具体",
+     owner:"ゴルフのスコア課題を自分で分析、宿題も前向きに受け取っている",
+     track:"ゼミ研究3本、美容系YouTube運営インターン、研究を一気通貫で遂行"},
+ rev:{r3:"3つの軸はいずれも他社でも満たせる条件で、DI固有の理由になっていない",
+      r4:"部署理解が不十分で宿題を出されている",r2:"B2B中心に幅広く比較中"},
+ str:["志望の軸・理由・裏づけ経験が1本の線でつながっている","研究で課題設定から成果発表までを完遂した再現性"],
+ gap:["志望の軸がすべて他社でも満たせる内容","部署理解が不十分と面接官から宿題を出されている"],
+ watch:["宿題の遂行度がそのまま素直さと本気度の指標になる","事業会社ではなく支援側を選ぶ理由を再確認"],
+ adv:["部署ごとの業務内容を調べ、希望配属とその理由を言えるようにする","競争心を誰のどんな成果を最大化したいかに翻訳しておく"],
+ special:"選考スコアは12名中1位タイ（4.47）。それでも辞退しており、評価の高さが承諾につながらないことを最も象徴する例。"},
+
+{n:"松尾 咲希",date:"2026-01-30",iv:"北川",uni:"長崎大学 多文化社会学部",res:"辞退",
+ s:{speak:4.5,comm:4.5,look:null,edu:3.5,goal:4,owner:5,att:4.5,track:4.5,man:null},
+ r:{r1:4,r2:4,r3:3,r4:4,r5:5},
+ ev:{goal:"マーケティング志望は明確だが、将来像は『好きな事業に携わる』と流動的",
+     owner:"現地調査から課題を見つけ、財団と交渉してプロジェクトを自分で立ち上げリーダーを務めている",
+     track:"フィリピン1年留学、子ども向けワークショップ運営、SNS運用インターンを直談判で獲得",
+     att:"企画段階を一人で担い切った粘り"},
+ rev:{r5:"起業を志していた経緯があり、将来は好きな事業に携わりたいと述べている",
+      r4:"入社後に何を極めるかが未定",r2:"ベンチャー・メガベンチャーを広く比較"},
+ str:["ゼロから機会を作り出す行動量が群を抜いている","憧れから手触り感へと動機が成熟している"],
+ gap:["将来像が定まっておらず、入社後に何を極めるかが未定","起業志向が残っている"],
+ watch:["起業志向が残っていないか、定着の見込みを確認","日本の法人クライアント相手でも同じ熱量が出るか"],
+ adv:["プロジェクトの成果を参加人数や継続率など数字で語れるようにする","入社後3年で身につけたい専門領域を1つ決めておく"],
+ special:"当事者意識は12名中唯一の5.0。行動量では最上位だが、起業志向と将来像の流動性が辞退リスクを押し上げていた。"},
+
+{n:"富樫 衣晏",date:"2026-04-30",iv:"峠",uni:"信州大学 経済学部",res:"承諾",
+ s:{speak:4.5,comm:4.5,look:null,edu:3.5,goal:3,owner:3.5,att:4,track:4,man:null},
+ r:{r1:2,r2:2,r3:2,r4:4,r5:3},
+ ev:{comm:"面接官が論理的で理路整然と明確に評価",
+     goal:"軸の『利他性』が深掘り不足と指摘され、希望配属も未決定",
+     owner:"音楽サークル代表とバンド運営は主体的。一方で学ぶ側の姿勢が前面",
+     track:"バンドでの作曲・ライブ、サークル代表、計量分析の研究"},
+ rev:{r1:"複数の類似企業と比較する中でDIに最も魅力を感じたと明言",
+      r3:"データ分析力とクリエイティブが密接に関わる点という、会社固有の理由",r4:"配属希望が未決定"},
+ str:["話の構成力と論理性を面接官が明確に評価している","創作と数値分析の両方に実体験がある珍しい組み合わせ"],
+ gap:["軸である利他性の根拠が浅い","入社後にどちら側で働きたいかが未決定"],
+ watch:["宿題3点（軸の深掘り・理想像・配属希望）の仕上がり","音楽との距離の取り方と仕事への本気度"],
+ adv:["利他性をなぜ大事にするのか原体験を1つ特定して語れるようにする","コンサル側とプロダクト側のどちらを希望するか結論を出す"],
+ special:"選考スコアは12名中最下位（3.83）。それでも承諾している。辞退リスクが2.60と低く、比較の中でDIを最も魅力的と明言していた点が効いている。"},
+
+{n:"井田 彩心",date:"2026-06-01",iv:"松島",uni:"武蔵野美術大学 造形学部",res:"承諾",
+ s:{speak:4,comm:4,look:null,edu:3.5,goal:4,owner:4,att:4,track:4.5,man:null},
+ r:{r1:3,r2:3,r3:3,r4:1,r5:2},
+ ev:{goal:"広告で行動を変える→リピーター増とブランド価値向上、まずはWeb広告運用と段階が具体",
+     owner:"肌診断WebアプリをJavaScriptとPythonで個人制作",
+     track:"グラフィックデザイン専攻に加え個人開発。制作と実装の両方",
+     att:"調和を優先しつつ芯を持つ"},
+ rev:{r4:"Web広告の運用業務に強い興味があると明言し、志望職種が確定している",
+      r5:"デザイン職以外への迷いが見られない"},
+ str:["デザインと実装の両方を自走で形にした実績","数値で改善できる領域を自ら選んでいる判断"],
+ gap:["議論で自分の主張を通す場面の記述がない","対人スタイルが調和優先で提案の押し出しは未知数"],
+ watch:["意見が割れた場面でどう振る舞ったかを具体で確認","言語化能力という指摘をどう受け止めて動くか"],
+ adv:["デザインの意図を言葉で説明する練習を作品ごとに用意する","主張が対立した経験とそこで取った行動を語れるようにする"]}
+];
+
+/* ========== 計算 ========== */
+function totalOf(s){let sw=0,acc=0;for(const a of AXES){const v=s[a.id];if(v==null)continue;sw+=W[a.id];acc+=v*W[a.id];}return sw?acc/sw:0;}
+function covOf(s){let sw=0;for(const a of AXES)if(s[a.id]!=null)sw+=W[a.id];const t=AXES.reduce((x,a)=>x+W[a.id],0);return t?sw/t:0;}
+function riskOf(r){const v=RISKS.map(x=>r[x.id]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;}
+const RISK_TH=3.2;
+function band(t){
+  if(t>=4.20)return{label:"強く推奨",color:"var(--navy)"};
+  if(t>=4.00)return{label:"推奨",color:"var(--blue)"};
+  if(t>=3.80)return{label:"条件付きで推奨",color:"var(--amber)"};
+  if(t>=3.50)return{label:"要再確認",color:"var(--ink-3)"};
+  return{label:"見送りを検討",color:"var(--red)"};
+}
+function riskBand(r){
+  if(r>=4.0)return{label:"辞退リスク 高",color:"var(--red)"};
+  if(r>=RISK_TH)return{label:"辞退リスク やや高",color:"var(--amber)"};
+  if(r>=2.5)return{label:"辞退リスク 中",color:"var(--blue)"};
+  return{label:"辞退リスク 低",color:"var(--green)"};
+}
+const QUADS=[
+ {k:"最優先で確保",d:"選考評価が高く、辞退リスクも低い。",a:"最短で次選考を組み、内定出しを前倒しする。ここで時間をかけると他社に先を越される。"},
+ {k:"口説きに資源を集中",d:"選考評価は高いが、他社に流れやすい。",a:"評価の伝達では動かない。配属の確約、現場社員との接点、代表面談など、他社が出せない具体を早期に当てる。丹羽さんの例が示す通り、介入すれば覆る。"},
+ {k:"育成前提で検討",d:"現時点の評価は低いが、志望度は高い。",a:"入社後の伸びしろを見る。富樫さんの例のように、評価が最下位でも承諾して戦力になる可能性がある。不足軸を1つに特定して次選考で確認する。"},
+ {k:"深追いしない",d:"評価も志望度も基準未満。",a:"情報不足が原因か実力かを切り分け、追加面談1回で判断する。資源配分としては優先度を下げる。"}
+];
+const ADV={
+ speak:{w:"最初の30秒で結論が出るか。語尾が消えないか。",f:"結論→理由→具体例の順で30秒に収める練習。録画して声量と間を確認する。"},
+ comm:{w:"抽象質問と具体質問を交互に出し、答えがずれないか検証する。",f:"質問を一度言い換えて確認してから答える。回答は聞かれた言葉で締める。"},
+ look:{w:"画角、光源、背景の生活感。上半身が中央にあるか。",f:"面接30分前にカメラを起動し、顔に光が当たる位置と無地の背景を確保する。"},
+ edu:{w:"学歴そのものより、学んだ内容と志望職種がつながっているか。",f:"専攻で扱った手法を1つ選び、志望職種のどの場面で使えるかを説明できるようにする。"},
+ goal:{w:"入社後3年で何になりたいかを職種の粒度で答えられるか。",f:"3年後と10年後を職種名と達成したい成果指標まで具体化する。"},
+ owner:{w:"その意思決定を最初に言い出したのは誰かを追加で聞く。",f:"自分で決めて動かした経験を、課題設定→打ち手→数値結果の型で1本用意する。"},
+ att:{w:"指摘を受けた場面と、その後の行動変化をセットで聞く。",f:"フィードバックを受けて何を変えたかをbefore/afterで語れるようにする。"},
+ track:{w:"定量結果と、その中での自分の貢献範囲を分けて確認する。",f:"成果を数字にし、再現できる行動原理まで抽象化して入社後とつなげる。"},
+ man:{w:"入退室の挨拶、カメラ目線、表情の明るさ。",f:"挨拶と目線を録画で確認する。"}
+};
+const RADV={
+ r1:{w:"現時点の志望順位と、1位との差は何かを直接聞く。",f:"他社と比べてDIを選ぶ理由を1つに絞って言えるようにする。",act:"順位が下なら、1位企業が満たしていて自社が満たせていない条件を特定し、そこに直接答える場を作る。"},
+ r2:{w:"併願先の名前と、その会社の何に惹かれているかを聞く。",f:"併願先との違いを、条件ではなく仕事内容の言葉で説明できるようにする。",act:"知名度で競っても勝てない。配属の確実性や若手の裁量など、規模で勝る相手が出せない条件で勝負する。"},
+ r3:{w:"志望理由から社名を外しても成立してしまわないか確かめる。",f:"成長環境や人の良さ以外に、その会社でしかできないことを1つ挙げられるようにする。",act:"会社固有の事実（統合提案、配属プレゼン、コミチャレなど）を候補者の軸に結びつけて伝え直す。"},
+ r4:{w:"入社後にどの部署で何をしたいかを職種名で答えられるか。",f:"希望する職種を1つ決め、その仕事の1日を説明できる程度まで調べる。",act:"現場社員との面談を組み、業務の具体像を持たせる。配属希望が固まると辞退率は下がる。"},
+ r5:{w:"起業、進学、別業界など、就職以外の選択肢が残っていないか。",f:"他の選択肢を検討した上でいま就職を選ぶ理由を説明できるようにする。",act:"他の道への関心を否定せず、社内で実現できる形（新規事業、社内公募など）を具体的に示す。"}
+};
+const RUBRIC=[
+ ["話し方","結論から入り、間と声量が安定。聞き返しが起きない","おおむね伝わるが前置きが長い","要点が最後まで出ない"],
+ ["コミュニケーション","質問の意図をつかみ、聞かれた粒度で返す","答えは返るが粒度がずれる","質問と回答がずれ、修正しても戻らない"],
+ ["服装・背景","清潔感があり画角・光源も整っている","不足はないが準備の跡が薄い","場に合わない、通信環境が会話を妨げる"],
+ ["学歴","学習内容と志望職種が本人の言葉でつながっている","学びはあるが志望職種との接続が語られない","学習内容を説明できない"],
+ ["目標・将来性","3年後と長期の像が職種と成果指標まで具体","方向は定まるが粒度が粗い","軸が抽象語のみ"],
+ ["当事者意識","自分で課題を見つけ、決めて、動かした事実がある","役割は果たしたが起点は他者や慣例","与えられた場に乗っているだけ"],
+ ["性格・姿勢","指摘を受け止めて行動を変えた事実がある","素直だが変化の具体例が出てこない","指摘に防御的、継続の跡がない"],
+ ["実績","数字で語れ、再現できる行動原理まで抽象化できている","経験は豊富だが成果が定性的","活動歴の羅列にとどまる"],
+ ["あいさつ・マナー","明るい表情で目線が合い、入退室も自然","丁寧だが硬い、目線が落ちがち","挨拶が不十分、視線が合わない"]
+];
+const RRUBRIC=[
+ ["志望順位","DIが第一志望と明言している（1）","順位を言わない、または同列（3）","他社が1位と明言している（5）"],
+ ["併願先の強さ","併願がない、または競合しない業界（1）","同業だが規模が近い（3）","知名度や条件で勝る大手と競合（5）"],
+ ["DI固有の理由","会社固有の制度や事実を挙げて志望理由にしている（1）","一部は固有だが大半は一般論（3）","成長環境・人の良さなど他社でも成立する理由だけ（5）"],
+ ["配属・職種の確定度","希望職種を明言し、業務内容も理解している（1）","方向は決まるが職種が曖昧（3）","入社後に何をするかが未定（5）"],
+ ["他キャリアの引力","就職以外の選択肢はない（1）","過去に検討したが整理済み（3）","起業・進学・別業界への志向が現在も残る（5）"]
+];
+const INSIGHTS=[
+ ["学歴が高いほど辞退している","辞退群の学歴スコアは4.14、承諾群は3.60。9軸で最大の差。","学歴を選考の加点にしても歩留まりは上がらない。重みを下げ、学んだ内容と職種の接続を見る運用に切り替える。"],
+ ["当事者意識と実績も辞退群が上","当事者意識は辞退群4.29に対し承諾群3.90。実績も辞退群が0.24高い。","行動力のある層ほど選択肢が多い。この層には評価を伝えるだけでなく、他社が出せない条件を早期に提示する。"],
+ ["承諾群が勝るのは目標とコミュニケーション","目標・将来性は承諾群が0.19、コミュニケーションは0.13上回る。","入社後の像が具体的な人ほど残る。面接で将来像を聞くのではなく、一緒に描く時間に変える。"],
+ ["選考スコアの差はわずか0.10","承諾4.00に対し辞退4.10。ほぼ差がない。","選考スコアは通過判定にだけ使い、歩留まり予測には使わない。2つの指標を分けて運用する。"],
+ ["辞退リスクの差は1.11","選考スコアの10倍以上の差。しきい値3.2で12名中11名が的中。","二次面接の時点で辞退リスクを採点し、高い候補者にはフォローを設計してから次に送る。"],
+ ["会社の課題は知名度と面接官自身が認識","北川さんが最大の課題は知名度と述べ、ブランド戦略室を立ち上げたと説明している。","知名度で競合と正面衝突しないポジション取りが、そのまま辞退対策になる。"]
+];
+
+/* ========== 描画補助 ========== */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const NS="http://www.w3.org/2000/svg";
+function el(t,at,p){const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);if(p)p.appendChild(e);return e;}
+function txt(x,y,s,at,p){const e=el("text",Object.assign({x,y,fill:"currentColor","font-size":11},at||{}),p);e.textContent=s;return e;}
+const COL={"承諾":"var(--green)","辞退":"var(--red)","new":"var(--blue)"};
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const g=res=>C.filter(c=>c.res===res);
+
+/* ========== 概要 ========== */
+function renderStats(){
+  const a=g("承諾"), b=g("辞退");
+  const rows=[
+    ["41","内定を出した人数"],["15","内定承諾"],["24","内定辞退"],
+    ["61.5%","辞退率（検討中2名を除く）"],["12","議事録があり採点できた人数"],["0","不採用者のデータ"]
+  ];
+  document.getElementById("stats").innerHTML=rows.map(([v,k])=>
+    `<div class="stat"><div class="v num">${v}</div><div class="k">${k}</div></div>`).join("");
+}
+function renderOverlap(){
+  const box=document.getElementById("chart-overlap"); box.innerHTML="";
+  const W0=Math.min(820,Math.max(440,box.clientWidth||700)), H=210, P={t:30,r:24,b:44,l:40};
+  const lo=3.6,hi=4.6, x=v=>P.l+((v-lo)/(hi-lo))*(W0-P.l-P.r);
+  const svg=el("svg",{viewBox:`0 0 ${W0} ${H}`,role:"img"},box);
+  for(let v=3.6;v<=4.601;v+=0.2){
+    el("line",{x1:x(v),y1:P.t-8,x2:x(v),y2:H-P.b,stroke:"var(--line-2)"},svg);
+    txt(x(v),H-P.b+16,v.toFixed(1),{"text-anchor":"middle",fill:"var(--ink-3)","font-size":10},svg);
+  }
+  txt(W0/2,H-8,"選考スコア",{"text-anchor":"middle",fill:"var(--ink-2)","font-size":11.5},svg);
+  ["承諾","辞退"].forEach((res,ri)=>{
+    const y=P.t+ri*54;
+    txt(P.l-8,y+14,res,{"text-anchor":"end",fill:COL[res],"font-size":11.5,"font-weight":700},svg);
+    const seen={};
+    g(res).forEach(c=>{const t=totalOf(c.s), k=t.toFixed(2); seen[k]=(seen[k]||0)+1;
+      el("circle",{cx:x(t),cy:y+10-(seen[k]-1)*11,r:6,fill:COL[res],"fill-opacity":.75,stroke:"var(--paper)","stroke-width":1.2},svg);});
+    const m=avg(g(res).map(c=>totalOf(c.s)));
+    el("line",{x1:x(m),y1:y-6,x2:x(m),y2:y+26,stroke:COL[res],"stroke-width":2.5},svg);
+    txt(x(m),y-10,"平均 "+m.toFixed(2),{"text-anchor":"middle",fill:COL[res],"font-size":10.5},svg);
+  });
+  box.insertAdjacentHTML("beforeend",'<div class="legend"><span>丸1つが候補者1名。2つの群の平均差はわずか0.10です。</span></div>');
+}
+
+/* ========== 差分バー ========== */
+function diverging(target,items,cap,note){
+  const box=document.getElementById(target); box.innerHTML="";
+  const W0=Math.min(820,Math.max(440,box.clientWidth||700)), L=136,R=120, H=items.length*34+42;
+  const mid=L+(W0-L-R)/2, half=(W0-L-R)/2;
+  const x=d=>mid+(d/cap)*half;
+  const svg=el("svg",{viewBox:`0 0 ${W0} ${H}`,role:"img"},box);
+  el("line",{x1:mid,y1:20,x2:mid,y2:H-16,stroke:"var(--ink-3)"},svg);
+  txt(mid-6,14,"← 辞退群に多い",{"text-anchor":"end",fill:"var(--ink-3)","font-size":10},svg);
+  txt(mid+6,14,"承諾群に多い →",{fill:"var(--ink-3)","font-size":10},svg);
+  items.forEach((it,i)=>{
+    const y=34+i*34;
+    txt(L-10,y+12,it.name,{"text-anchor":"end",fill:"var(--ink-2)","font-size":12},svg);
+    const d=it.d, w=Math.abs(x(d)-mid);
+    el("rect",{x:d>=0?mid:mid-w,y:y+2,width:Math.max(w,1.5),height:17,
+      fill:d>=0?"var(--green)":"var(--red)","fill-opacity":.85},svg);
+    txt(W0-R+10,y+15,`承諾 ${it.a.toFixed(2)} / 辞退 ${it.b.toFixed(2)}`,{fill:"var(--ink-3)","font-size":10.5},svg);
+  });
+  box.insertAdjacentHTML("beforeend",`<div class="legend"><span>${note}</span></div>`);
+}
+function renderAxisDiff(){
+  const items=AXES.filter(a=>a.cov>0).map(a=>{
+    const A=avg(g("承諾").map(c=>c.s[a.id])), B=avg(g("辞退").map(c=>c.s[a.id]));
+    return {name:a.name,a:A,b:B,d:A-B};
+  }).sort((p,q)=>p.d-q.d);
+  const A=avg(g("承諾").map(c=>totalOf(c.s))), B=avg(g("辞退").map(c=>totalOf(c.s)));
+  items.push({name:"総合スコア",a:A,b:B,d:A-B});
+  diverging("chart-axisdiff",items,0.6,"最大の差は学歴の −0.54。高学歴の内定者ほど辞退しています。");
+}
+function renderRiskDiff(){
+  const items=RISKS.map(r=>{
+    const A=avg(g("承諾").map(c=>c.r[r.id])), B=avg(g("辞退").map(c=>c.r[r.id]));
+    return {name:r.name,a:A,b:B,d:B-A};
+  }).sort((p,q)=>q.d-p.d);
+  const A=avg(g("承諾").map(c=>riskOf(c.r))), B=avg(g("辞退").map(c=>riskOf(c.r)));
+  items.push({name:"辞退リスク合計",a:A,b:B,d:B-A});
+  const box="chart-riskdiff";
+  // 向きを反転して表示（右＝辞退群に多い）
+  const box2=document.getElementById(box); box2.innerHTML="";
+  const W0=Math.min(820,Math.max(440,box2.clientWidth||700)), L=150,R=124, H=items.length*34+42;
+  const svg=el("svg",{viewBox:`0 0 ${W0} ${H}`,role:"img"},box2);
+  const x0=L, w=W0-L-R, x=d=>x0+(d/1.6)*w;
+  el("line",{x1:x0,y1:20,x2:x0,y2:H-16,stroke:"var(--ink-3)"},svg);
+  txt(x0+6,14,"辞退群のほうが高い →",{fill:"var(--ink-3)","font-size":10},svg);
+  items.forEach((it,i)=>{
+    const y=34+i*34;
+    txt(L-10,y+12,it.name,{"text-anchor":"end",fill:"var(--ink-2)","font-size":12},svg);
+    el("rect",{x:x0,y:y+2,width:Math.max(x(it.d)-x0,1.5),height:17,fill:"var(--red)","fill-opacity":.85},svg);
+    txt(W0-R+10,y+15,`承諾 ${it.a.toFixed(2)} / 辞退 ${it.b.toFixed(2)}`,{fill:"var(--ink-3)","font-size":10.5},svg);
+  });
+  box2.insertAdjacentHTML("beforeend",'<div class="legend"><span>配属・職種の確定度と志望順位が、最も大きく効いています。</span></div>');
+}
+function renderInsight(){
+  document.getElementById("tbl-insight").innerHTML=
+   "<thead><tr><th>わかったこと</th><th>数値</th><th>打ち手</th></tr></thead><tbody>"+
+   INSIGHTS.map(r=>`<tr><td style="font-weight:700;min-width:190px">${esc(r[0])}</td><td style="min-width:200px">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join("")+"</tbody>";
+}
+
+/* ========== 散布図 ========== */
+function quadOf(c){const hi=totalOf(c.s)>=4.0, risk=riskOf(c.r)>=RISK_TH; return risk?(hi?1:3):(hi?0:2);}
+function renderScatter(){
+  const box=document.getElementById("chart-scatter"); box.innerHTML="";
+  const all=[...C,...saved()];
+  const W0=Math.min(760,Math.max(400,box.clientWidth||700)), H=Math.min(540,W0*0.85);
+  const P={t:34,r:26,b:48,l:58};
+  const x0=3.6,x1=4.65,y0=1.8,y1=4.6;
+  const X=v=>P.l+((v-x0)/(x1-x0))*(W0-P.l-P.r), Y=v=>H-P.b-((v-y0)/(y1-y0))*(H-P.t-P.b);
+  const svg=el("svg",{viewBox:`0 0 ${W0} ${H}`,role:"img"},box);
+  el("rect",{x:X(4.0),y:P.t,width:W0-P.r-X(4.0),height:Y(RISK_TH)-P.t,fill:"var(--amber-soft)","fill-opacity":.6},svg);
+  el("rect",{x:X(4.0),y:Y(RISK_TH),width:W0-P.r-X(4.0),height:H-P.b-Y(RISK_TH),fill:"var(--green-soft)","fill-opacity":.6},svg);
+  el("line",{x1:X(4.0),y1:P.t,x2:X(4.0),y2:H-P.b,stroke:"var(--ink-3)","stroke-dasharray":"4 4"},svg);
+  el("line",{x1:P.l,y1:Y(RISK_TH),x2:W0-P.r,y2:Y(RISK_TH),stroke:"var(--ink-3)","stroke-dasharray":"4 4"},svg);
+  el("line",{x1:P.l,y1:H-P.b,x2:W0-P.r,y2:H-P.b,stroke:"var(--line)"},svg);
+  el("line",{x1:P.l,y1:P.t,x2:P.l,y2:H-P.b,stroke:"var(--line)"},svg);
+  txt(W0-P.r-6,P.t+14,"口説きに資源を集中",{"text-anchor":"end",fill:"var(--ink-3)","font-size":11},svg);
+  txt(P.l+6,P.t+14,"深追いしない",{fill:"var(--ink-3)","font-size":11},svg);
+  txt(W0-P.r-6,H-P.b-8,"最優先で確保",{"text-anchor":"end",fill:"var(--ink-3)","font-size":11},svg);
+  txt(P.l+6,H-P.b-8,"育成前提で検討",{fill:"var(--ink-3)","font-size":11},svg);
+  txt(W0/2,H-10,"選考スコア →",{"text-anchor":"middle",fill:"var(--ink-2)","font-size":11.5},svg);
+  txt(0,0,"辞退リスク →",{fill:"var(--ink-2)","font-size":11.5,"text-anchor":"middle",transform:`translate(16,${(H-P.b+P.t)/2}) rotate(-90)`},svg);
+  for(let v=2;v<=4.5;v+=0.5) txt(P.l-8,Y(v)+4,v.toFixed(1),{"text-anchor":"end",fill:"var(--ink-3)","font-size":9.5},svg);
+  for(let v=3.8;v<=4.6;v+=0.2) txt(X(v),H-P.b+15,v.toFixed(1),{"text-anchor":"middle",fill:"var(--ink-3)","font-size":9.5},svg);
+  all.forEach(c=>{
+    const cx=X(totalOf(c.s)), cy=Y(riskOf(c.r)), col=c.isNew?COL.new:COL[c.res];
+    el("circle",{cx,cy,r:c.isNew?7.5:6.5,fill:col,"fill-opacity":.85,stroke:"var(--paper)","stroke-width":1.5},svg);
+    txt(cx+10,cy+4,c.n,{fill:"var(--ink)","font-size":10.5},svg);
+  });
+  box.insertAdjacentHTML("beforeend",
+    `<div class="legend">
+      <span><i class="swatch" style="background:var(--green);border-radius:50%"></i>内定承諾</span>
+      <span><i class="swatch" style="background:var(--red);border-radius:50%"></i>内定辞退</span>
+      <span><i class="swatch" style="background:var(--blue);border-radius:50%"></i>追加入力</span>
+      <span>上半分（辞退リスク3.2以上）にいる7名のうち6名が辞退しています。</span>
+     </div>`);
+  const mem=[[],[],[],[]]; C.forEach(c=>mem[quadOf(c)].push(c.n+"（"+c.res+"）"));
+  document.getElementById("tbl-quad").innerHTML=
+   "<thead><tr><th>象限</th><th>該当者</th><th>状態</th><th>打ち手</th></tr></thead><tbody>"+
+   QUADS.map((q,i)=>`<tr><td class="namecell">${esc(q.k)}<small>${mem[i].length}名</small></td><td style="min-width:170px">${mem[i].map(esc).join("<br>")||"—"}</td><td style="min-width:150px">${esc(q.d)}</td><td>${esc(q.a)}</td></tr>`).join("")+"</tbody>";
+}
+
+/* ========== レーダー ========== */
+let radarSel=["田中 美桜里","富樫 衣晏","丹羽 憧"];
+function renderRadarChips(){
+  const w=document.getElementById("radarchips"); w.innerHTML="";
+  [...C,...saved()].forEach(c=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.textContent=c.n; b.setAttribute("aria-pressed",radarSel.includes(c.n));
+    b.onclick=()=>{const i=radarSel.indexOf(c.n); if(i>=0)radarSel.splice(i,1);
+      else{if(radarSel.length>=3)radarSel.shift(); radarSel.push(c.n);} renderRadarChips(); renderRadar();};
+    w.appendChild(b);
+  });
+}
+function renderRadar(){
+  const box=document.getElementById("chart-radar"); box.innerHTML="";
+  const list=AXES.filter(a=>a.cov>0), N=list.length;
+  const S=Math.min(500,Math.max(320,box.clientWidth||500)), cx=S/2, cy=S/2+6, R=S/2-74;
+  const svg=el("svg",{viewBox:`0 0 ${S} ${S+24}`,role:"img"},box);
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/N;return[cx+Math.cos(a)*r,cy+Math.sin(a)*r];};
+  for(let gg=1;gg<=5;gg++) el("polygon",{points:[...Array(N)].map((_,i)=>pt(i,R*gg/5).join(",")).join(" "),fill:"none",stroke:"var(--line-2)"},svg);
+  list.forEach((a,i)=>{const[X1,Y1]=pt(i,R);el("line",{x1:cx,y1:cy,x2:X1,y2:Y1,stroke:"var(--line)"},svg);
+    const[lx,ly]=pt(i,R+22);
+    txt(lx,ly+4,a.name,{"text-anchor":lx>cx+4?"start":(lx<cx-4?"end":"middle"),fill:"var(--ink-2)","font-size":10.5},svg);});
+  const cols=["var(--navy)","var(--red)","var(--green)"];
+  const chosen=[...C,...saved()].filter(c=>radarSel.includes(c.n));
+  chosen.forEach((c,k)=>{
+    el("polygon",{points:list.map((a,i)=>pt(i,R*((c.s[a.id]??0)/5)).join(",")).join(" "),
+      fill:cols[k%3],"fill-opacity":.12,stroke:cols[k%3],"stroke-width":2},svg);
+    list.forEach((a,i)=>{if(c.s[a.id]==null)return;const[X1,Y1]=pt(i,R*(c.s[a.id]/5));el("circle",{cx:X1,cy:Y1,r:3,fill:cols[k%3]},svg);});
+  });
+  box.insertAdjacentHTML("beforeend",'<div class="legend">'+chosen.map((c,k)=>
+    `<span><i class="swatch" style="background:${cols[k%3]}"></i>${esc(c.n)}（選考${totalOf(c.s).toFixed(2)}／リスク${riskOf(c.r).toFixed(2)}／${esc(c.res||"入力")}）</span>`).join("")+'</div>');
+}
+
+/* ========== 一覧 ========== */
+let sortKey="total", sortDir=-1, openName=null;
+function rowsData(){
+  let a=[...C]; if(document.getElementById("shownew").checked) a=a.concat(saved());
+  const f=document.getElementById("filter").value;
+  if(f!=="all") a=a.filter(c=>c.res===f);
+  const key=c=>sortKey==="total"?totalOf(c.s):(sortKey==="risk"?riskOf(c.r):(sortKey==="date"?c.date:(c.s[sortKey]??0)));
+  return a.sort((p,q)=>{const A=key(p),B=key(q);return A<B?sortDir:(A>B?-sortDir:0);});
+}
+function renderTable(){
+  const t=document.getElementById("tbl-main"), cols=AXES.filter(a=>a.cov>0);
+  t.innerHTML="<thead><tr><th>候補者</th><th data-k='date'>面接</th>"+
+    cols.map(a=>`<th data-k="${a.id}">${esc(a.name)}</th>`).join("")+
+    "<th data-k='total'>選考</th><th data-k='risk'>辞退<br>リスク</th><th>結果</th></tr></thead><tbody>"+
+    rowsData().map(c=>{
+      const tt=totalOf(c.s), b=band(tt), rr=riskOf(c.r), rb=riskBand(rr);
+      const tagcls=c.isNew?"new":(c.res==="承諾"?"ok":"no");
+      return `<tr data-n="${esc(c.n)}"><td class="namecell">${esc(c.n)}<small>${esc(c.uni)}</small></td>
+        <td style="white-space:nowrap;font-size:11.5px;color:var(--ink-2)">${c.date||""}<br>${esc(c.iv||"")}</td>`+
+        cols.map(a=>`<td class="n">${c.s[a.id]==null?"—":c.s[a.id].toFixed(1)}</td>`).join("")+
+        `<td class="n" style="font-weight:700;color:${b.color}">${tt.toFixed(2)}</td>
+         <td class="n" style="font-weight:700;color:${rb.color}">${rr.toFixed(2)}</td>
+         <td><span class="tag ${tagcls}">${esc(c.res||"入力データ")}</span></td></tr>`;
+    }).join("")+"</tbody>";
+  t.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(sortKey===k)sortDir*=-1; else{sortKey=k;sortDir=-1;} renderTable();});
+  t.querySelectorAll("tbody tr").forEach(tr=>tr.onclick=()=>{openName=tr.dataset.n; renderDetail(true);});
+  if(openName) renderDetail(false);
+}
+function renderDetail(scroll){
+  const d=document.getElementById("detail");
+  const c=[...C,...saved()].find(x=>x.n===openName);
+  if(!c){d.innerHTML="";return;}
+  const tt=totalOf(c.s), b=band(tt), rr=riskOf(c.r), rb=riskBand(rr);
+  const low=AXES.filter(a=>a.cov>0&&c.s[a.id]!=null).sort((p,q)=>c.s[p.id]-c.s[q.id]).slice(0,2);
+  const hiR=RISKS.filter(r=>c.r[r.id]!=null).sort((p,q)=>c.r[q.id]-c.r[p.id]).slice(0,2);
+  const evs=Object.entries(c.ev||{}).map(([k,v])=>
+    `<div style="margin-bottom:9px"><b style="font-size:12.5px">${esc(AXMAP[k].name)}　${c.s[k].toFixed(1)}</b><div class="ev">${esc(v)}</div></div>`).join("");
+  const revs=RISKS.map(r=>`<div style="margin-bottom:7px"><b style="font-size:12.5px">${esc(r.name)}　${c.r[r.id]??"—"}</b>${(c.rev&&c.rev[r.id])?`<div class="ev">${esc(c.rev[r.id])}</div>`:""}</div>`).join("");
+  d.innerHTML=`<div class="detail">
+    <div class="detail-h">
+      <h3 style="font-size:17px">${esc(c.n)}　<span class="num" style="color:${b.color}">選考 ${tt.toFixed(2)}</span>　<span class="num" style="color:${rb.color}">辞退リスク ${rr.toFixed(2)}</span>　<span class="tag ${c.isNew?"new":(c.res==="承諾"?"ok":"no")}">${esc(c.res||"入力データ")}</span></h3>
+      <div class="meta">${esc(c.uni||"")}　／　${c.date||""}　面接官：${esc(c.iv||"—")}　／　判定：${b.label}・${rb.label}</div>
+      ${c.special?`<div class="callout" style="margin:12px 0 0">${esc(c.special)}</div>`:""}
+    </div>
+    <div class="detail-b">
+      <div class="pts">
+        ${c.str?`<h4>強み</h4><ul>${c.str.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+        ${c.gap?`<h4>不足している点</h4><ul>${c.gap.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+        <h4>次の面接で確認すべき点</h4>
+        <ul>${(c.watch||low.map(a=>ADV[a.id].w)).concat(hiR.map(r=>RADV[r.id].w)).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+        <h4>本人に伝えるとしたら</h4>
+        <ul>${(c.adv||low.map(a=>ADV[a.id].f)).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+        <h4>採用側が打つべき手</h4>
+        <ul>${hiR.map(r=>`<li>${esc(RADV[r.id].act)}</li>`).join("")}</ul>
+      </div>
+      <div>
+        <h4 style="font-size:12.5px;color:var(--ink-2);margin:0 0 10px">選考スコアの根拠</h4>${evs||'<div class="ev">手入力データのため根拠の記録はありません。</div>'}
+        <h4 style="font-size:12.5px;color:var(--ink-2);margin:20px 0 8px">辞退リスクの内訳</h4>${revs}
+      </div>
+    </div></div>`;
+  if(scroll) d.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+/* ========== 保存・判定 ========== */
+const KEY="di-recruit-eval-v2";
+function saved(){
+  try{const r=localStorage.getItem(KEY); if(!r)return[];
+    return JSON.parse(r).map(o=>Object.assign({isNew:true,res:null,uni:"手入力",iv:"—"},o));}catch(e){return[];}
+}
+function persist(a){try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}}
+function buildSliders(){
+  const w=document.getElementById("sliders"); w.innerHTML="";
+  for(const a of AXES) w.insertAdjacentHTML("beforeend",
+   `<div class="frow"><label for="s-${a.id}">${esc(a.name)}<small>${esc(a.hint)}</small></label>
+    <input type="range" id="s-${a.id}" min="0" max="5" step="0.5" value="${a.cov===0?0:3.5}">
+    <output id="o-${a.id}">${a.cov===0?"未評価":"3.5"}</output></div>`);
+  const r=document.getElementById("rsliders"); r.innerHTML="";
+  for(const x of RISKS) r.insertAdjacentHTML("beforeend",
+   `<div class="frow"><label for="s-${x.id}">${esc(x.name)}<small>${esc(x.hint)}</small></label>
+    <input type="range" id="s-${x.id}" min="1" max="5" step="0.5" value="3">
+    <output id="o-${x.id}">3.0</output></div>`);
+  document.querySelectorAll("#sliders input,#rsliders input").forEach(inp=>inp.addEventListener("input",()=>{
+    const id=inp.id.slice(2);
+    document.getElementById("o-"+id).textContent = (inp.value==="0"&&AXMAP[id])?"未評価":(+inp.value).toFixed(1);
+    renderVerdict();}));
+}
+function readForm(){
+  const s={},r={};
+  for(const a of AXES){const v=+document.getElementById("s-"+a.id).value; s[a.id]=v===0?null:v;}
+  for(const x of RISKS) r[x.id]=+document.getElementById("s-"+x.id).value;
+  return {s,r};
+}
+function renderVerdict(){
+  const {s,r}=readForm(), t=totalOf(s), b=band(t), rr=riskOf(r), rb=riskBand(rr), cov=covOf(s);
+  const base=C.map(c=>totalOf(c.s)).sort((a,z)=>a-z);
+  const pct=Math.round(base.filter(v=>v<t).length/base.length*100);
+  const q=QUADS[(rr>=RISK_TH)?(t>=4.0?1:3):(t>=4.0?0:2)];
+  const lowA=AXES.filter(a=>s[a.id]!=null).sort((p,z)=>s[p.id]-s[z.id]).slice(0,2);
+  const hiR=RISKS.slice().sort((p,z)=>r[z.id]-r[p.id]).slice(0,2);
+  const warn=[];
+  if(s.owner!=null&&s.owner<=2) warn.push("当事者意識が2.0以下です。自分で決めて動いた経験の確認を先に行ってください。");
+  if(s.comm!=null&&s.comm<=2) warn.push("コミュニケーションが2.0以下です。質問の伝わり方そのものを疑い、聞き方を変えて再確認してください。");
+  if(cov<0.9) warn.push(`未評価の軸があり、選考スコアの根拠は全体の${Math.round(cov*100)}%です。動画を確認すると精度が上がります。`);
+  document.getElementById("verdict").innerHTML=`
+    <div class="vhead">
+      <div><div class="big" style="color:${b.color}">${t.toFixed(2)}</div>
+        <div class="lb" style="color:${b.color}">${b.label}</div>
+        <div class="cap">選考スコア／既存12名中 上位${100-pct}%</div></div>
+      <div><div class="big" style="color:${rb.color}">${rr.toFixed(2)}</div>
+        <div class="lb" style="color:${rb.color}">${rb.label}</div>
+        <div class="cap">辞退リスク／しきい値は3.20</div></div>
+    </div>
+    <div class="action"><div class="t">${esc(q.k)}</div><div style="font-size:13.5px;color:var(--ink-2)">${esc(q.a)}</div></div>
+    ${warn.length?`<div class="callout">${warn.map(x=>`<div>${esc(x)}</div>`).join("")}</div>`:""}
+    <h4 style="font-size:12.5px;color:var(--ink-2);margin:16px 0 6px">選考で点が低い軸：${lowA.map(a=>esc(a.name)+" "+s[a.id].toFixed(1)).join("　／　")||"—"}</h4>
+    <ul style="font-size:13.5px;padding-left:1.15em;margin:0 0 4px"><li>面接官が見る点：${esc(ADV[lowA[0]?.id]?.w||"—")}</li>
+    <li>本人へのアドバイス：${esc(ADV[lowA[0]?.id]?.f||"—")}</li></ul>
+    <h4 style="font-size:12.5px;color:var(--ink-2);margin:16px 0 6px">辞退リスクが高い項目：${hiR.map(x=>esc(x.name)+" "+r[x.id].toFixed(1)).join("　／　")}</h4>
+    <ul style="font-size:13.5px;padding-left:1.15em;margin:0">${hiR.map(x=>`<li>${esc(RADV[x.id].act)}</li>`).join("")}</ul>`;
+}
+function renderSavedList(){
+  const a=saved(), w=document.getElementById("savedlist");
+  w.innerHTML=a.length?"保存済み："+a.map(x=>esc(x.n)+"（選考"+totalOf(x.s).toFixed(2)+"／リスク"+riskOf(x.r).toFixed(2)+"）").join("、")
+   :"保存したデータはまだありません。保存すると2軸マップと一覧に追加されます。";
+}
+
+/* ========== 重み・基準 ========== */
+function renderWeights(){
+  const w=document.getElementById("weights"); w.innerHTML="";
+  for(const a of AXES) w.insertAdjacentHTML("beforeend",
+   `<div class="frow"><label for="w-${a.id}">${esc(a.name)}<small>${a.cov===0?"動画がないため現在は計算から除外":esc(a.hint)}</small></label>
+    <input type="range" id="w-${a.id}" min="0" max="30" step="1" value="${W[a.id]}"><output id="wo-${a.id}">${W[a.id]}%</output></div>`);
+  w.insertAdjacentHTML("beforeend",`<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn ghost" id="wreset">初期値に戻す</button>
+    <span id="wsum" style="font-size:12.5px;color:var(--ink-2);align-self:center"></span></div>`);
+  w.querySelectorAll("input[type=range]").forEach(r=>r.addEventListener("input",()=>{
+    const id=r.id.slice(2); W[id]=+r.value; document.getElementById("wo-"+id).textContent=r.value+"%"; refreshAll();}));
+  document.getElementById("wreset").onclick=()=>{W=Object.fromEntries(AXES.map(a=>[a.id,a.w])); renderWeights(); refreshAll();};
+  document.getElementById("wsum").textContent=`入力合計 ${AXES.reduce((t,a)=>t+W[a.id],0)}%（100%に正規化して計算します）`;
+}
+function renderRubric(){
+  document.getElementById("tbl-rubric").innerHTML=
+   "<thead><tr><th>軸</th><th>5点</th><th>3点</th><th>1点</th></tr></thead><tbody>"+
+   RUBRIC.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td></tr>`).join("")+"</tbody>";
+  document.getElementById("tbl-rrubric").innerHTML=
+   "<thead><tr><th>シグナル</th><th>低リスク</th><th>中</th><th>高リスク</th></tr></thead><tbody>"+
+   RRUBRIC.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td></tr>`).join("")+"</tbody>";
+}
+
+/* ========== 更新 ========== */
+function refreshAll(){
+  renderStats(); renderOverlap(); renderAxisDiff(); renderRiskDiff(); renderInsight();
+  renderScatter(); renderRadarChips(); renderRadar(); renderTable(); renderVerdict(); renderSavedList();
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll("section.panel").forEach(p=>p.classList.toggle("on",p.id===b.dataset.p));
+  window.scrollTo({top:0}); setTimeout(refreshAll,0);});
+document.getElementById("shownew").onchange=renderTable;
+document.getElementById("filter").onchange=renderTable;
+document.getElementById("save").onclick=()=>{
+  const n=(document.getElementById("f-name").value||"").trim();
+  if(!n){document.getElementById("f-name").focus();
+    document.getElementById("savedlist").textContent="氏名・識別名を入れてから保存してください。";return;}
+  const {s,r}=readForm();
+  const arr=saved().filter(a=>a.n!==n);
+  arr.push({n,s,r,date:new Date().toISOString().slice(0,10)});
+  persist(arr.map(({n,s,r,date})=>({n,s,r,date})));
+  document.getElementById("shownew").checked=true; refreshAll();};
+document.getElementById("reset").onclick=()=>{buildSliders(); document.getElementById("f-name").value=""; renderVerdict();};
+document.getElementById("clearall").onclick=()=>{persist([]); refreshAll();};
+document.getElementById("themebtn").onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme",dark?"light":"dark"); refreshAll();};
+let rt; addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(refreshAll,180);});
+buildSliders(); renderWeights(); renderRubric(); refreshAll();
+</script>
+</body>
+</html>
